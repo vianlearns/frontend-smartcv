@@ -1,32 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { jobApi, JobApplication } from "@/lib/api";
-import { useAppStore } from "@/store";
+import { jobApi, aiApi, JobApplication } from "@/lib/api";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
 
 export default function JobDetailPage() {
   const { id } = useParams();
-  const router = useRouter();
   const { getToken } = useAuth();
-  const { jobs } = useAppStore();
   const [job, setJob] = useState<JobApplication | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [gapAnalysis, setGapAnalysis] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadJob();
-  }, [id]);
-
-  async function loadJob() {
+  const loadJob = useCallback(async () => {
     try {
       const token = await getToken();
       if (!token) return;
@@ -42,7 +34,11 @@ export default function JobDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [getToken, id]);
+
+  useEffect(() => {
+    loadJob();
+  }, [loadJob]);
 
   async function analyzeJob() {
     if (!job) return;
@@ -52,8 +48,8 @@ export default function JobDetailPage() {
       const token = await getToken();
       if (!token) return;
 
-      const res = await jobApi.analyzeGap(token, job.id);
-      setGapAnalysis(res.data.analysis);
+      const res = await aiApi.analyzeGap(token, job.id);
+      setGapAnalysis(JSON.stringify(res.data, null, 2));
       toast.success("Analysis complete");
     } catch (error) {
       toast.error("Failed to analyze");
@@ -155,7 +151,7 @@ export default function JobDetailPage() {
                 </div>
               ) : (
                 <p className="text-zinc-600 text-sm">
-                  Click analyze to compare your profile against this job's requirements.
+                  Click analyze to compare your profile against this job&apos;s requirements.
                 </p>
               )}
             </CardContent>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ const jobTypes = [
 
 export default function NewJobPage() {
   const { getToken } = useAuth();
-  const router = require("next/navigation").useRouter();
+  const router = useRouter();
   const { addJob } = useAppStore();
   const [loading, setLoading] = useState(false);
 

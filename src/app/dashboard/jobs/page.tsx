@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { jobApi, JobApplication } from "@/lib/api";
+import { jobApi } from "@/lib/api";
 import { useAppStore } from "@/store";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
@@ -15,11 +15,7 @@ export default function JobsPage() {
   const { jobs, setJobs, removeJob } = useAppStore();
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadJobs();
-  }, []);
-
-  async function loadJobs() {
+  const loadJobs = useCallback(async () => {
     try {
       const token = await getToken();
       if (!token) return;
@@ -32,7 +28,11 @@ export default function JobsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [getToken, setJobs]);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
 
   async function handleDelete(id: number) {
     if (!confirm("Delete this job application?")) return;

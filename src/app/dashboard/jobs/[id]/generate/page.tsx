@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { jobApi, cvApi } from "@/lib/api";
-import { useAppStore } from "@/store";
+import { jobApi, cvApi, aiApi, JobApplication } from "@/lib/api";
 import toast from "react-hot-toast";
 
 interface ChatMessage {
@@ -20,26 +18,16 @@ export default function GenerateCVPage() {
   const { id } = useParams();
   const router = useRouter();
   const { getToken } = useAuth();
-  const { user } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [job, setJob] = useState<any>(null);
-  const [cvContent, setCVContent] = useState<string | null>(null);
+  const [job, setJob] = useState<JobApplication | null>(null);
+  const [cvContent, setCVContent] = useState<Record<string, unknown> | null>(null);
   const [cvId, setCVId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadJob();
-  }, [id]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  async function loadJob() {
+  const loadJob = useCallback(async () => {
     try {
       const token = await getToken();
       if (!token) return;
@@ -52,7 +40,15 @@ export default function GenerateCVPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [getToken, id]);
+
+  useEffect(() => {
+    loadJob();
+  }, [loadJob]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   async function generateCV() {
     if (!job) return;
@@ -62,15 +58,14 @@ export default function GenerateCVPage() {
       const token = await getToken();
       if (!token) return;
 
-      const res = await cvApi.generate(token, {
-        job_application_id: job.id,
-      });
+      const res = await cvApi.generate(token, job.id);
 
       setCVContent(res.data.content);
       setCVId(res.data.id);
       toast.success("CV generated!");
-    } catch (error: any) {
-      if (error.response?.data?.error?.includes("credits")) {
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } };
+      if (axiosError.response?.data?.error?.includes("credits")) {
         toast.error("Not enough credits. Please purchase more.");
         router.push("/dashboard/credits");
       } else {
@@ -93,10 +88,9 @@ export default function GenerateCVPage() {
       const token = await getToken();
       if (!token) return;
 
-      const res = await cvApi.chat(token, cvId, userMessage, messages);
-      
+      const res = await aiApi.chat(token, userMessage, messages);
+
       setMessages((prev) => [...prev, { role: "assistant", content: res.data.response }]);
-      setCVContent(res.data.cv_content);
     } catch (error) {
       toast.error("Failed to send message");
       console.error(error);
@@ -169,7 +163,7 @@ export default function GenerateCVPage() {
             <h2 className="text-lg font-medium mb-4">CV Preview</h2>
             {cvContent ? (
               <div className="flex-1 overflow-y-auto bg-white text-black rounded-xl p-6 text-sm leading-relaxed">
-                <pre className="whitespace-pre-wrap font-sans">{cvContent}</pre>
+                <pre className="whitespace-pre-wrap font-sans">{JSON.stringify(cvContent, null, 2)}</pre>
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl">
@@ -208,11 +202,10 @@ export default function GenerateCVPage() {
                   {messages.map((msg, i) => (
                     <div
                       key={i}
-                      className={`p-4 rounded-xl text-sm ${
-                        msg.role === "user"
+                      className={`p-4 rounded-xl text-sm ${msg.role === "user"
                           ? "bg-zinc-800 ml-8"
                           : "bg-zinc-900 mr-8"
-                      }`}
+                        }`}
                     >
                       {msg.content}
                     </div>
