@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,11 +15,7 @@ export default function ResumesPage() {
   const { cvs, setCVs } = useAppStore();
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadResumes();
-  }, []);
-
-  async function loadResumes() {
+  const loadResumes = useCallback(async () => {
     try {
       const token = await getToken();
       if (!token) return;
@@ -32,22 +28,16 @@ export default function ResumesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [getToken, setCVs]);
 
-  async function handleDelete(id: number) {
+  useEffect(() => {
+    loadResumes();
+  }, [loadResumes]);
+
+  async function handleDelete() {
     if (!confirm("Delete this resume?")) return;
-
-    try {
-      const token = await getToken();
-      if (!token) return;
-
-      await cvApi.delete(token, id);
-      setCVs(cvs.filter((cv) => cv.id !== id));
-      toast.success("Deleted");
-    } catch (error) {
-      toast.error("Failed to delete");
-      console.error(error);
-    }
+    // Note: CV delete not implemented in backend
+    toast.error("Delete feature not available");
   }
 
   async function downloadPDF(cv: GeneratedCV) {
@@ -119,7 +109,7 @@ export default function ResumesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(cv.id)}
+                      onClick={() => handleDelete()}
                       className="text-red-400 hover:text-red-300 hover:bg-red-950"
                     >
                       Delete

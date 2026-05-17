@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useAppStore } from "@/store";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useUser();
