@@ -64,6 +64,8 @@ export default function ResumeDetailPage() {
   const [newComment, setNewComment] = useState("");
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [freeRevision, setFreeRevision] = useState(true);
+  const [revisionDeadline, setRevisionDeadline] = useState<string | null>(null);
 
   const loadResume = useCallback(async () => {
     try {
@@ -77,6 +79,14 @@ export default function ResumeDetailPage() {
 
       setCV(cvRes.data);
       setComments(commentsRes.data);
+      
+      // Set free revision info
+      if (cvRes.data.free_revision !== undefined) {
+        setFreeRevision(cvRes.data.free_revision as boolean);
+      }
+      if (cvRes.data.revision_deadline) {
+        setRevisionDeadline(cvRes.data.revision_deadline as string);
+      }
 
       // Parse CV content
       if (cvRes.data.content) {
@@ -105,17 +115,31 @@ export default function ResumeDetailPage() {
       const res = await cvApi.addComment(token, cv.id, newComment.trim());
       setComments([...comments, res.data]);
       
+      // Check if credits were deducted
+      if (res.data.credits_deducted) {
+        toast.success("Revision applied! 1 credit deducted.");
+      } else {
+        toast.success("Revision applied! Free revision period.");
+      }
+      
       // Reload CV to get updated content
       const cvRes = await cvApi.get(token, Number(id));
       setCV(cvRes.data);
       if (cvRes.data.content) {
         setCVContent(cvRes.data.content as CVContentData);
       }
+      if (cvRes.data.free_revision !== undefined) {
+        setFreeRevision(cvRes.data.free_revision as boolean);
+      }
       
       setNewComment("");
-      toast.success("Revision applied!");
-    } catch (error) {
-      toast.error("Failed to add comment");
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string; free_revision_expired?: boolean } } };
+      if (axiosError.response?.data?.free_revision_expired) {
+        toast.error("Free revision period expired. Please purchase more credits.");
+      } else {
+        toast.error("Failed to add comment");
+      }
       console.error(error);
     } finally {
       setSaving(false);
@@ -401,6 +425,26 @@ export default function ResumeDetailPage() {
 
               {/* Add Comment */}
               <div className="p-4 border-b border-zinc-800 space-y-3">
+                {/* Free Revision Status Banner */}
+                {freeRevision ? (
+                  <div className="flex items-center gap-2 text-sm text-green-400 bg-green-500/10 px-3 py-2 rounded-lg">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Free revision period active</span>
+                    {revisionDeadline && (
+                      <span className="text-zinc-500 ml-auto">
+                        Expires: {new Date(revisionDeadline).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-zinc-400 bg-zinc-800 px-3 py-2 rounded-lg">
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Revisions require 1 credit</span>
+                    <Link href="/dashboard/credits" className="text-white underline ml-auto">
+                      Buy credits
+                    </Link>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-sm text-zinc-400">
                   <Sparkles className="w-4 h-4" />
                   <span>Request AI-powered revisions</span>

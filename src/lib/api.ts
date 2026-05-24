@@ -101,6 +101,8 @@ export interface GeneratedCV {
   version: number;
   created_at: string;
   updated_at: string;
+  free_revision?: boolean;
+  revision_deadline?: string;
 }
 
 export interface CVComment {
@@ -111,6 +113,9 @@ export interface CVComment {
   content: string;
   is_resolved?: boolean;
   created_at: string;
+  credits_deducted?: boolean;
+  free_revision?: boolean;
+  revision_deadline?: string;
 }
 
 export interface User {
